@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Flutter
+.dart_tool/
+**/.dart_tool/
+build/
+**/build/
+
+# Android / Gradle
+.gradle/
+**/.gradle/
+
+# Java memory dumps
+*.hprof
+
+# Java crash/debug logs
+replay_pid*.log
+hs_err_pid*.log
+
+# IDE
+.idea/
+**/.idea/
+.vscode/
+
+# Environment / secrets
+.env
+*.pem
+
+# Logs
+*.log
+# Firebase / Google Cloud service account secret
+backend/services/serviceAccountKey.json
