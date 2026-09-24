@@ -1,5 +1,5 @@
 class ApiConstants {
-  static const String apiBase = "http://192.168.29.236:3000/api";
+  static const String apiBase = "https://mahal-owner.onrender.com/api";
   static const String authUrl = "$apiBase/auth";
   static const String ownerUrl = "$apiBase/owner";
   static const String mahalUrl = "$apiBase/mahal";
