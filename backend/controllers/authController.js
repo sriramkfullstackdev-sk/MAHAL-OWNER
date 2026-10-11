@@ -1,6 +1,68 @@
 const MahalOwner = require("../models/MahalOwner");
 const jwt = require("jsonwebtoken");
 const otpHelper = require("../utils/otpHelper");
+const { randomBytes, scrypt, timingSafeEqual } = require("crypto");
+const { promisify } = require("util");
+
+const scryptAsync = promisify(scrypt);
+
+const hashPassword = async (password) => {
+    const salt = randomBytes(16).toString("hex");
+    const hash = await scryptAsync(password, salt, 64);
+    return `${salt}:${hash.toString("hex")}`;
+};
+
+const verifyPassword = async (password, storedHash) => {
+    const [salt, hash] = storedHash.split(":");
+    const expected = Buffer.from(hash, "hex");
+    const actual = await scryptAsync(password, salt, expected.length);
+    return timingSafeEqual(expected, actual);
+};
+
+const passwordAuth = async (req, res) => {
+    try {
+        const { phone_number, password, mode } = req.body;
+        if (!phone_number || !password || !["signup", "signin"].includes(mode)) {
+            return res.status(400).json({ success: false, message: "Phone number, password, and mode are required." });
+        }
+        if (password.length < 8) {
+            return res.status(400).json({ success: false, message: "Password must be at least 8 characters." });
+        }
+
+        let owner = await MahalOwner.findOne({ mbl_no: phone_number }).select("+password_hash");
+        if (mode === "signup") {
+            if (owner?.password_hash) {
+                return res.status(409).json({ success: false, message: "An account with this phone number already exists. Please sign in." });
+            }
+            if (!owner) owner = new MahalOwner({ mbl_no: phone_number });
+            owner.password_hash = await hashPassword(password);
+            await owner.save();
+        } else if (!owner?.password_hash || !(await verifyPassword(password, owner.password_hash))) {
+            return res.status(401).json({ success: false, message: "Invalid phone number or password." });
+        }
+
+        const token = jwt.sign(
+            { mahalowner_id: owner._id.toString(), mbl_no: phone_number },
+            process.env.JWT_SECRET,
+            { expiresIn: "7d" }
+        );
+        const safeOwner = owner.toObject();
+        delete safeOwner.password_hash;
+
+        return res.status(200).json({
+            success: true,
+            message: mode === "signup" ? "Account created successfully." : "Signed in successfully.",
+            isExistingOwner: Boolean(owner.owner_name?.trim()),
+            role: "OWNER",
+            ownerId: owner._id,
+            token,
+            owner: safeOwner
+        });
+    } catch (err) {
+        console.error("Error in passwordAuth:", err);
+        return res.status(500).json({ success: false, message: "Internal server error." });
+    }
+};
 
 /**
  * Send OTP API
@@ -124,6 +186,7 @@ const verifyOtp = async (req, res) => {
 };
 
 module.exports = {
+    passwordAuth,
     checkMobile,
     sendOtp,
     verifyOtp

@@ -7,6 +7,10 @@ const mahalOwnerSchema = new mongoose.Schema({
         unique: true,
         trim: true
     },
+    password_hash: {
+        type: String,
+        select: false
+    },
     owner_name: {
         type: String,
         trim: true

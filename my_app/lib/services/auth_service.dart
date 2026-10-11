@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api_constants.dart';
 
 class AuthService {
-
   static const _tokenKey = 'owner_jwt_token';
   static const _phoneKey = 'owner_phone';
   static const _ownerIdKey = 'owner_id';
@@ -53,34 +52,69 @@ class AuthService {
     registrationComplete = false;
   }
 
-  static Future<Map<String,dynamic>> checkMobile(String phoneNumber) async {
+  static Future<Map<String, dynamic>> checkMobile(String phoneNumber) async {
     final response = await http.post(
       Uri.parse("${ApiConstants.baseUrl}/check-mobile"),
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: jsonEncode({
-        "phone_number": phoneNumber
-      }),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"phone_number": phoneNumber}),
     );
 
     return jsonDecode(response.body);
   }
 
-  static Future<Map<String,dynamic>> sendOtp(
-      String phoneNumber) async {
+  static Future<Map<String, dynamic>> passwordAuth({
+    required String phoneNumber,
+    required String password,
+    required String mode,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse("${ApiConstants.baseUrl}/password"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "phone_number": phoneNumber,
+          "password": password,
+          "mode": mode,
+        }),
+      );
+      final contentType = response.headers["content-type"] ?? "";
+      if (!contentType.contains("application/json")) {
+        return {
+          "success": false,
+          "message": response.statusCode == 404
+              ? "Password login is not enabled on the server yet. Please deploy the updated owner backend and try again."
+              : "The server returned an invalid response. Please try again later.",
+        };
+      }
 
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) {
+        return {
+          "success": false,
+          "message":
+              "The server returned an invalid response. Please try again later.",
+        };
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return {...decoded, "success": false};
+      }
+      return decoded;
+    } catch (e) {
+      return {
+        "success": false,
+        "message":
+            "Unable to connect to the server. Check your connection and try again.",
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> sendOtp(String phoneNumber) async {
     final response = await http.post(
       Uri.parse("${ApiConstants.baseUrl}/send-otp"),
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: jsonEncode({
-        "phone_number": phoneNumber
-      }),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"phone_number": phoneNumber}),
     );
 
     return jsonDecode(response.body);
   }
-
 }
